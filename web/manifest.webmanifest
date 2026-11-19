@@ -1,0 +1,10 @@
+{
+  "name": "Spider Sense",
+  "short_name": "Spider Sense",
+  "description": "Advisory GPS speed tracker and nearby road hazard alerts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101720",
+  "theme_color": "#101720",
+  "icons": []
+}

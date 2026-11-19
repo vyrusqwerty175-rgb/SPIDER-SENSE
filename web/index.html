@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101720">
+  <meta name="description" content="An advisory GPS speed tracker and nearby road hazard alert prototype.">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>Spider Sense — Drive aware</title>
+  <style>
+    :root{color-scheme:dark;--bg:#101720;--panel:#192431;--muted:#a9b5c3;--text:#f4f7fb;--accent:#65e6bc;--warn:#ffd166;--danger:#ff7777;--line:#344354}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#263849,var(--bg) 62%);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+    main{max-width:760px;margin:auto;padding:24px 18px 48px}.top{display:flex;align-items:center;gap:12px}.logo{width:44px;height:44px;border-radius:14px;background:var(--accent);color:#08241c;display:grid;place-items:center;font-size:24px;font-weight:900}.brand{font-weight:800;font-size:1.2rem;letter-spacing:.02em}.tag{color:var(--muted);font-size:.9rem}.status{margin-left:auto;color:var(--muted);font-size:.86rem;display:flex;align-items:center;gap:8px}.dot{width:9px;height:9px;border-radius:50%;background:#738092}.dot.on{background:var(--accent);box-shadow:0 0 12px #65e6bc88}
+    .hero{margin:26px 0 16px;padding:24px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(145deg,#202f3e,#17212c);text-align:center}.eyebrow{color:var(--muted);text-transform:uppercase;letter-spacing:.14em;font-size:.75rem;font-weight:700}.speed{font-variant-numeric:tabular-nums;font-weight:750;font-size:clamp(5rem,24vw,8rem);line-height:1.07;letter-spacing:-.08em;margin:8px 0 0}.unit{font-size:1rem;letter-spacing:0;color:var(--muted);font-weight:500}.speed-state{min-height:26px;color:var(--muted)}.speed-state.over{color:var(--danger);font-weight:700}.controls{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:18px}
+    button,select{font:inherit;border:1px solid var(--line);border-radius:13px;padding:12px 16px;color:var(--text);background:#253545}button{font-weight:700;cursor:pointer}button:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}.primary{background:var(--accent);border-color:var(--accent);color:#09241c}.danger{background:#45272b;border-color:#754148;color:#ffd9d9}.settings,.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:14px}.settings{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.settings label{font-weight:650}.setting-controls{display:flex;gap:8px;align-items:center}.setting-controls input{width:86px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#101720;color:var(--text);font:inherit}.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.section-head h2{font-size:1.05rem;margin:0}.section-head span,.small{color:var(--muted);font-size:.85rem}.alerts{display:grid;gap:10px;margin-top:14px}.empty{color:var(--muted);padding:16px;text-align:center;border:1px dashed var(--line);border-radius:12px}.alert{padding:14px;border-radius:13px;border-left:4px solid var(--warn);background:#352f20}.alert strong{display:block}.alert p{margin:4px 0 0;color:#e5ddc8}.alert time{font-size:.78rem;color:var(--muted)}.notice{margin:20px 2px;color:var(--muted);font-size:.82rem}.notice strong{color:var(--warn)}.modal-backdrop{position:fixed;inset:0;background:#000a;display:none;place-items:center;padding:18px}.modal-backdrop.open{display:grid}.dialog{width:min(100%,420px);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px}.dialog h2{margin-top:0}.dialog select{width:100%;margin:12px 0}.dialog-actions{display:flex;gap:10px;justify-content:flex-end}.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#263545;padding:12px 18px;border:1px solid var(--line);border-radius:14px;max-width:90vw;display:none}.toast.show{display:block}
+    @media(max-width:480px){main{padding:18px 14px 36px}.hero{padding:20px 14px}.settings{align-items:flex-start}.setting-controls{width:100%;justify-content:space-between}.status{font-size:.78rem}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="logo" aria-hidden="true">S</div>
+    <div><div class="brand">SPIDER SENSE</div><div class="tag">Drive aware. Arrive safe.</div></div>
+    <div class="status" aria-live="polite"><span id="dot" class="dot"></span><span id="status">Not tracking</span></div>
+  </header>
+  <section class="hero" aria-label="Current GPS speed">
+    <div class="eyebrow">Current speed</div>
+    <div id="speed" class="speed">--<span id="unit" class="unit"> km/h</span></div>
+    <div id="speedState" class="speed-state">Start tracking to see GPS speed</div>
+    <div class="controls">
+      <button id="start" class="primary">Start tracking</button>
+      <button id="stop" class="danger" hidden>Stop tracking</button>
+      <button id="report" aria-label="Report a nearby road hazard" disabled>Report hazard</button>
+    </div>
+  </section>
+  <section class="settings" aria-label="Speed settings">
+    <label for="limit">Speed limit reminder</label>
+    <div class="setting-controls"><input id="limit" type="number" min="1" max="300" value="50" inputmode="numeric" aria-label="Speed limit"><select id="units" aria-label="Speed units"><option value="kmh">km/h</option><option value="mph">mph</option></select></div>
+  </section>
+  <section class="panel" aria-labelledby="alertsTitle">
+    <div class="section-head"><h2 id="alertsTitle">Nearby road alerts</h2><span id="alertCount">Waiting for location</span></div>
+    <div id="alerts" class="alerts" aria-live="polite"><div class="empty">Start tracking to receive nearby alerts.</div></div>
+  </section>
+  <p class="notice"><strong>Prototype, not an emergency service.</strong> GPS speed and community alerts may be inaccurate, delayed, or unverified. Keep your eyes on the road and do not use this app while driving. Pull over safely before interacting. In an emergency, call local emergency services.</p>
+</main>
+<div id="modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+  <div class="dialog"><h2 id="dialogTitle">Report a nearby hazard</h2><p class="small">Your current location will be shared to alert nearby app users. Reports are unverified and expire automatically.</p>
+    <label for="category">What are you reporting?</label><select id="category"><option value="accident">Possible accident</option><option value="road_hazard">Road hazard</option><option value="obstruction">Road obstruction</option></select>
+    <div class="dialog-actions"><button id="cancelReport">Cancel</button><button id="sendReport" class="primary">Send report</button></div>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  let watchId = null, socket = null, lastPosition = null, currentSpeedKmh = null, reconnectTimer = null;
+  let units = localStorage.getItem('spider-units') || 'kmh';
+  $('units').value = units;
+  $('limit').value = localStorage.getItem('spider-limit') || '50';
+  const unitText = () => units === 'kmh' ? 'km/h' : 'mph';
+  const displaySpeed = (kmh) => units === 'kmh' ? kmh : kmh / 1.609344;
+  const toast = (message) => { $('toast').textContent = message; $('toast').classList.add('show'); setTimeout(() => $('toast').classList.remove('show'), 3500); };
+  function updateSpeed(kmh) {
+    currentSpeedKmh = Number.isFinite(kmh) && kmh >= 0 ? kmh : null;
+    $('unit').textContent = ' ' + unitText();
+    $('speed').firstChild.textContent = currentSpeedKmh === null ? '--' : String(Math.round(displaySpeed(currentSpeedKmh)));
+    const limit = Number($('limit').value);
+    const over = currentSpeedKmh !== null && limit > 0 && currentSpeedKmh > (units === 'kmh' ? limit : limit * 1.609344);
+    $('speedState').textContent = currentSpeedKmh === null ? 'Waiting for a reliable GPS speed…' : over ? 'Above your reminder limit — slow down safely' : 'GPS speed estimate';
+    $('speedState').classList.toggle('over', over);
+  }
+  function connectSocket() {
+    if (!lastPosition || (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING))) return;
+    const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    socket = new WebSocket(`${scheme}//${location.host}/ws/driver`);
+    socket.onopen = () => { $('status').textContent = 'Connected'; $('dot').classList.add('on'); socket.send(JSON.stringify(lastPosition)); };
+    socket.onmessage = (event) => showAlert(JSON.parse(event.data));
+    socket.onclose = () => { $('status').textContent = watchId === null ? 'Not tracking' : 'Reconnecting'; $('dot').classList.remove('on'); if (watchId !== null) reconnectTimer = setTimeout(connectSocket, 2500); };
+    socket.onerror = () => socket.close();
+  }
+  function showAlert(alert) {
+    if (alert.expires_at && Date.parse(alert.expires_at) <= Date.now()) return;
+    if ([...$('alerts').children].some(card => card.dataset.alertId === alert.created_at + alert.message)) return;
+    const empty = $('alerts').querySelector('.empty'); if (empty) empty.remove();
+    const card = document.createElement('article'); card.className = 'alert'; card.dataset.alertId = alert.created_at + alert.message;
+    const title = document.createElement('strong'); title.textContent = alert.kind === 'hazard' ? '⚠ Nearby road hazard — unverified' : 'Speed alert — unverified';
+    const message = document.createElement('p'); message.textContent = alert.message;
+    const time = document.createElement('time'); time.textContent = 'Expires ' + new Date(alert.expires_at).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+    card.append(title, message, time); $('alerts').prepend(card); $('alertCount').textContent = 'Latest first';
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification('Spider Sense: nearby alert', {body: alert.message});
+    if (navigator.vibrate) navigator.vibrate([120, 70, 120]);
+  }
+  function onPosition(position) {
+    const c = position.coords; lastPosition = {latitude:c.latitude, longitude:c.longitude};
+    let kmh = Number.isFinite(c.speed) && c.speed >= 0 ? c.speed * 3.6 : null;
+    if (kmh === null && lastPosition && onPosition.previous && position.timestamp > onPosition.previous.time) {
+      const p = onPosition.previous, rad = n => n * Math.PI / 180;
+      const a = Math.sin(rad(c.latitude-p.lat)/2)**2 + Math.cos(rad(p.lat))*Math.cos(rad(c.latitude))*Math.sin(rad(c.longitude-p.lon)/2)**2;
+      const meters = 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const seconds = (position.timestamp-p.time)/1000;
+      if (seconds > 0 && c.accuracy <= 50 && p.accuracy <= 50) kmh = meters / seconds * 3.6;
+    }
+    onPosition.previous = {lat:c.latitude, lon:c.longitude, time:position.timestamp, accuracy:c.accuracy};
+    if (c.accuracy > 100) { updateSpeed(null); $('speedState').textContent = 'GPS accuracy is too low'; }
+    else updateSpeed(kmh);
+    if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(lastPosition)); else connectSocket();
+    $('report').disabled = false;
+  }
+  function start() {
+    if (!navigator.geolocation) { toast('This browser does not support GPS location.'); return; }
+    if (!window.isSecureContext) { toast('Location requires HTTPS, or localhost for testing.'); return; }
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(()=>{});
+    $('status').textContent = 'Requesting GPS…';
+    watchId = navigator.geolocation.watchPosition(onPosition, (error) => { $('status').textContent = 'Location unavailable'; toast(error.message || 'Could not get GPS location.'); }, {enableHighAccuracy:true, maximumAge:3000, timeout:15000});
+    $('start').hidden = true; $('stop').hidden = false;
+  }
+  function stop() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null; clearTimeout(reconnectTimer); if (socket) socket.close(); socket = null; lastPosition = null;
+    $('status').textContent = 'Not tracking'; $('dot').classList.remove('on'); $('report').disabled = true; $('stop').hidden = true; $('start').hidden = false;
+    updateSpeed(null); $('speedState').textContent = 'Tracking stopped'; $('alertCount').textContent = 'Tracking stopped';
+  }
+  $('start').addEventListener('click', start); $('stop').addEventListener('click', stop);
+  $('units').addEventListener('change', () => { units = $('units').value; localStorage.setItem('spider-units', units); updateSpeed(currentSpeedKmh); });
+  $('limit').addEventListener('input', () => { localStorage.setItem('spider-limit', $('limit').value); updateSpeed(currentSpeedKmh); });
+  $('report').addEventListener('click', () => $('modal').classList.add('open'));
+  $('cancelReport').addEventListener('click', () => $('modal').classList.remove('open'));
+  $('sendReport').addEventListener('click', async () => {
+    if (!lastPosition) return toast('Start tracking to share your location.');
+    $('sendReport').disabled = true;
+    try {
+      const response = await fetch('/api/report', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...lastPosition, category:$('category').value})});
+      const data = await response.json(); if (!response.ok) throw new Error(data.detail || 'Report could not be sent.');
+      $('modal').classList.remove('open'); toast(`Report sent. ${data.recipients_notified} nearby connection(s) notified.`);
+    } catch (error) { toast(error.message); } finally { $('sendReport').disabled = false; }
+  });
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('/service-worker.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
